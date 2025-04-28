@@ -1,0 +1,51 @@
+pipeline {
+    agent any
+
+    environment {
+        JAR_NAME = "miapp.jar"
+        JAR_PATH = "target/${JAR_NAME}"
+        APP_PORT = "8080"
+    }
+
+    triggers {
+        cron('0 23 * * *')
+    }
+
+    stages {
+        stage('Clonar repositorio') {
+            steps {
+                git branch: 'main', url: 'https://github.com/frankgraya/Jenkis-deploys.git'
+            }
+        }
+        stage('Compilar proyecto') {
+            steps {
+                bat './mvnw clean package'
+            }
+        }
+        stage('Detener aplicación previa') {
+            steps {
+                bat 'taskkill /F /IM java.exe || exit 0'
+                bat 'timeout /t 5'
+            }
+        }
+        stage('Desplegar nueva versión') {
+            steps {
+                bat "start \"\" java -jar ${JAR_PATH}"
+            }
+        }
+        stage('Verificar despliegue') {
+            steps {
+                bat 'timeout /t 10'
+                bat "curl -I http://localhost:${APP_PORT} || exit 1"
+            }
+        }
+    }
+    post {
+        success {
+            echo "✅ Despliegue exitoso."
+        }
+        failure {
+            echo "❌ Error en el despliegue."
+        }
+    }
+}
